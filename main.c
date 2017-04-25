@@ -20,23 +20,22 @@ enum errorCode {
 };
 
 struct argument {
-	uchar** imageR;
-	uchar** imageG;
-	uchar** imageB;
+	uchar **imageR;
+	uchar **imageG;
+	uchar **imageB;
 	int start;
 	int end;
 	int height;
 	int width;
-	uchar** res;
+	uchar **res;
 };
 
 void *Sobel(void *arg);
 
-void ntoa(uchar* buff, double number, int n)
+void ntoa(uchar *buff, double number, int n)
 {
 	int i = 0;
 	int j = 0;
-
 	int point;
 	unsigned long high = (unsigned long)number;
 	double low = number - (unsigned long)number;
@@ -47,7 +46,7 @@ void ntoa(uchar* buff, double number, int n)
 		i++;
 	}
 	point = i;
- 	for (j = 0; j < i/2; j++) {
+	for (j = 0; j < i/2; j++) {
 		uchar temp;
 
 		temp = buff[j];
@@ -79,30 +78,31 @@ void ntoa(uchar* buff, double number, int n)
 void operror(char code)
 {
 	char str[LENGTH] = {0};
+
 	switch (code) {
-		case 1:
-			strcpy(str, "Usage: <image.ppm> <num of threads>\n");
-			break;
-		case 2:
-			strcpy(str, "Error: opening file\n");
-			break;
-		case 3:
-			strcpy(str, "Error: reading file\n");
-			break;
-		case 4:
-			strcpy(str, "Error: format\n");
-			break;
-		case 5:
-			strcpy(str, "Error: pthread create\n");
-			break;
-		case 6:
-			strcpy(str, "Error: timer\n");
-			break;
-		case 7:
-			strcpy(str, "Error: cannot join thread\n");
-			break;
-		default:
-			strcpy(str, "Some error occured\n");
+	case 1:
+		strcpy(str, "Usage: <image.ppm> <num of threads>\n");
+		break;
+	case 2:
+		strcpy(str, "Error: opening file\n");
+		break;
+	case 3:
+		strcpy(str, "Error: reading file\n");
+		break;
+	case 4:
+		strcpy(str, "Error: format\n");
+		break;
+	case 5:
+		strcpy(str, "Error: pthread create\n");
+		break;
+	case 6:
+		strcpy(str, "Error: timer\n");
+		break;
+	case 7:
+		strcpy(str, "Error: cannot join thread\n");
+		break;
+	default:
+		strcpy(str, "Some error occured\n");
 	}
 	write(2, str, strlen(str));
 	exit(code);
@@ -110,13 +110,16 @@ void operror(char code)
 
 int max3(int a1, int a2, int a3)
 {
-	if (a1 >= a2 && a1 >= a3) return a1;
-	if (a2 >= a1 && a2 >= a3) return a2;
-	if (a3 >= a1 && a3 >= a2) return a3;
+	if (a1 >= a2 && a1 >= a3)
+		return a1;
+	if (a2 >= a1 && a2 >= a3)
+		return a2;
+	if (a3 >= a1 && a3 >= a2)
+		return a3;
 	return 0;
 }
 
-int parseImage(char* name, int* width, int* height)
+int parseImage(char *name, int *width, int *height)
 {
 	uchar buff[LENGTH] = {0};
 	int nread;
@@ -126,6 +129,7 @@ int parseImage(char* name, int* width, int* height)
 	int w = 0;
 	int h = 0;
 	int offset = 0;
+
 	ppm = open(name, O_RDONLY);
 	if (ppm == -1)
 		operror(OPENING);
@@ -165,8 +169,8 @@ int parseImage(char* name, int* width, int* height)
 	return offset;
 }
 
-void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
-				char* name, int width, int height, int offset)
+void loadImage(uchar **imageR, uchar **imageG, uchar **imageB,
+				char *name, int width, int height, int offset)
 {
 	uchar buff[LENGTH] = {0};
 	int nread;
@@ -174,6 +178,7 @@ void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
 	int y = 0;
 	int ppm;
 	int i = 0;
+
 	ppm = open(name, O_RDONLY);
 	if (ppm == -1)
 		operror(OPENING);
@@ -187,7 +192,7 @@ void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
 		if (i >= nread) {
 			nread = read(ppm, buff, LENGTH);
 			if (nread == -1)
-                		operror(READING);
+				operror(READING);
 			i = 0;
 		}
 		imageG[y][x] = buff[i];
@@ -217,36 +222,48 @@ void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
 	close(ppm);
 }
 
-void* Sobel(void *arg)
+void *Sobel(void *arg)
 {
 	int i = 0;
 	int j = 0;
 	int Gxr, Gxg, Gxb;
 	int Gyr, Gyg, Gyb;
 	int fr, fb, fg, f;
-	struct argument* a;
+	struct argument *a;
 
-	a = (struct argument*)arg;
+	a = (struct argument *)arg;
 	if (a->start == 0)
 		a->start++;
 	if (a->end == a->height)
 		a->end--;
 	for (i = a->start; i < a->end; i++) {
 		for (j = 1; j < a->width-1; j++) {
-			Gxr = a->imageR[i+1][j-1] + 2*a->imageR[i+1][j] + a->imageR[i+1][j+1] -
-				 (a->imageR[i-1][j-1] + 2*a->imageR[i-1][j] + a->imageR[i-1][j+1]);
-			Gyr = a->imageR[i-1][j+1] + 2*a->imageR[i][j+1] + a->imageR[i+1][j+1] -
-				 (a->imageR[i-1][j-1] + 2*a->imageR[i][j-1] + a->imageR[i+1][j-1]);
+			Gxr = a->imageR[i+1][j-1] + 2*a->imageR[i+1][j]
+				+ a->imageR[i+1][j+1] -
+				 (a->imageR[i-1][j-1] + 2*a->imageR[i-1][j]
+				+ a->imageR[i-1][j+1]);
+			Gyr = a->imageR[i-1][j+1] + 2*a->imageR[i][j+1]
+				+ a->imageR[i+1][j+1] -
+				 (a->imageR[i-1][j-1] + 2*a->imageR[i][j-1]
+				+ a->imageR[i+1][j-1]);
 
-			Gxg = a->imageG[i+1][j-1] + 2*a->imageG[i+1][j] + a->imageG[i+1][j+1] -
-				 (a->imageG[i-1][j-1] + 2*a->imageG[i-1][j] + a->imageG[i-1][j+1]);
-			Gyg = a->imageG[i-1][j+1] + 2*a->imageG[i][j+1] + a->imageG[i+1][j+1] -
-				 (a->imageG[i-1][j-1] + 2*a->imageG[i][j-1] + a->imageG[i+1][j-1]);
+			Gxg = a->imageG[i+1][j-1] + 2*a->imageG[i+1][j]
+				+ a->imageG[i+1][j+1] -
+				 (a->imageG[i-1][j-1] + 2*a->imageG[i-1][j]
+				+ a->imageG[i-1][j+1]);
+			Gyg = a->imageG[i-1][j+1] + 2*a->imageG[i][j+1]
+				+ a->imageG[i+1][j+1] -
+				 (a->imageG[i-1][j-1] + 2*a->imageG[i][j-1]
+				+ a->imageG[i+1][j-1]);
 
-			Gxb = a->imageB[i+1][j-1] + 2*a->imageB[i+1][j] + a->imageB[i+1][j+1] -
-				 (a->imageB[i-1][j-1] + 2*a->imageB[i-1][j] + a->imageB[i-1][j+1]);
-			Gyb = a->imageB[i-1][j+1] + 2*a->imageB[i][j+1] + a->imageB[i+1][j+1] -
-				 (a->imageB[i-1][j-1] + 2*a->imageB[i][j-1] + a->imageB[i+1][j-1]);
+			Gxb = a->imageB[i+1][j-1] + 2*a->imageB[i+1][j]
+				+ a->imageB[i+1][j+1] -
+				 (a->imageB[i-1][j-1] + 2*a->imageB[i-1][j]
+				+ a->imageB[i-1][j+1]);
+			Gyb = a->imageB[i-1][j+1] + 2*a->imageB[i][j+1]
+				+ a->imageB[i+1][j+1] -
+				 (a->imageB[i-1][j-1] + 2*a->imageB[i][j-1]
+				+ a->imageB[i+1][j-1]);
 
 			fr = sqrt(Gxr*Gxr+Gyr*Gyr);
 			fg = sqrt(Gxg*Gxg+Gyg*Gyg);
@@ -263,7 +280,7 @@ void* Sobel(void *arg)
 	pthread_exit(0);
 }
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	uchar buff[LENGTH] = {0};
 	int width = 0;
@@ -272,13 +289,13 @@ int main(int argc, char* argv[])
 	int i = 0;
 	int j = 0;
 	int offset = 0;
-	uchar** imageR;
-	uchar** imageG;
-	uchar** imageB;
-	uchar** res;
-	pthread_t* threads;
+	uchar **imageR;
+	uchar **imageG;
+	uchar **imageB;
+	uchar **res;
+	pthread_t *threads;
 	int numthreads = 0;
-	struct argument* arguments;
+	struct argument *arguments;
 	struct timespec start;
 	struct timespec end;
 	double elapsed;
@@ -288,23 +305,23 @@ int main(int argc, char* argv[])
 
 	offset = parseImage(argv[1], &width, &height);
 
-	imageR = (uchar**)malloc(height*sizeof(uchar*));
+	imageR = (uchar **)malloc(height*sizeof(uchar *));
 	for (j = 0; j < height; j++)
-		imageR[j] = (uchar*)malloc(width*sizeof(uchar));
+		imageR[j] = (uchar *)malloc(width*sizeof(uchar));
 
-	imageG = (uchar**)malloc(height*sizeof(uchar*));
+	imageG = (uchar **)malloc(height*sizeof(uchar *));
 	for (j = 0; j < height; j++)
-		imageG[j] = (uchar*)malloc(width*sizeof(uchar));
+		imageG[j] = (uchar *)malloc(width*sizeof(uchar));
 
-	imageB = (uchar**)malloc(height*sizeof(uchar*));
+	imageB = (uchar **)malloc(height*sizeof(uchar *));
 	for (j = 0; j < height; j++)
-		imageB[j] = (uchar*)malloc(width*sizeof(uchar));
+		imageB[j] = (uchar *)malloc(width*sizeof(uchar));
 
 	loadImage(imageR, imageG, imageB, argv[1], width, height, offset);
 
-	res = (uchar**)calloc(height, sizeof(uchar*));
+	res = (uchar **)calloc(height, sizeof(uchar *));
 	for (j = 0; j < height; j++)
-		res[j] = (uchar*)calloc(width, sizeof(uchar));
+		res[j] = (uchar *)calloc(width, sizeof(uchar));
 	i = 0;
 	while (i < strlen(argv[2])) {
 		numthreads *= 10;
@@ -312,8 +329,8 @@ int main(int argc, char* argv[])
 		i++;
 	}
 
-	threads = (pthread_t*)malloc(numthreads*sizeof(pthread_t));
-	arguments = (struct argument*)malloc(numthreads*sizeof(struct argument));
+	threads = (pthread_t *)malloc(numthreads*sizeof(pthread_t));
+	arguments = (struct argument *)malloc(numthreads*sizeof(struct argument));
 
 	j = clock_gettime(CLOCK_REALTIME, &start);
 	if (j != 0)
@@ -329,7 +346,8 @@ int main(int argc, char* argv[])
 		arguments[i].start = i*(height/numthreads);
 		arguments[i].end = arguments[i].start + height/numthreads;
 
-		j = pthread_create(threads+i, NULL, Sobel, (void *)(arguments+i));
+		j = pthread_create(threads+i, NULL,
+							Sobel, (void *)(arguments+i));
 		if (j != 0)
 			operror(PTHREAD);
 	}
