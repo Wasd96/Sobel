@@ -346,8 +346,7 @@ int main(int argc, char *argv[])
 		arguments[i].start = i*(height/numthreads);
 		arguments[i].end = arguments[i].start + height/numthreads;
 
-		j = pthread_create(threads+i, NULL,
-							Sobel, (void *)(arguments+i));
+		j = pthread_create(threads+i, NULL, Sobel, (void *)(arguments+i));
 		if (j != 0)
 			operror(PTHREAD);
 	}
