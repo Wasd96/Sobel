@@ -36,8 +36,7 @@ void ntoa(uchar* buff, double number, int n)
 {
 	int i = 0;
 	int j = 0;
-	uchar temp;
-	uchar lowstr[LENGTH];
+
 	int point;
 	unsigned long high = (unsigned long)number;
 	double low = number - (unsigned long)number;
@@ -49,6 +48,8 @@ void ntoa(uchar* buff, double number, int n)
 	}
 	point = i;
  	for (j = 0; j < i/2; j++) {
+		uchar temp;
+
 		temp = buff[j];
 		buff[j] = buff[i-j-1];
 		buff[i-j-1] = temp;
@@ -59,6 +60,8 @@ void ntoa(uchar* buff, double number, int n)
 	}
 	buff[point] = 0;
 	if (low > 0) {
+		uchar lowstr[LENGTH];
+
 		i = 0;
 		buff[point] = '.';
 		buff[point+1] = 0;
@@ -118,12 +121,11 @@ int parseImage(char* name, int* width, int* height)
 	uchar buff[LENGTH] = {0};
 	int nread;
 	int ppm;
-    int i = 0;
-    int sizes;
+	int i = 0;
+	int sizes;
 	int w = 0;
 	int h = 0;
 	int offset = 0;
-	
 	ppm = open(name, O_RDONLY);
 	if (ppm == -1)
 		operror(OPENING);
@@ -132,34 +134,34 @@ int parseImage(char* name, int* width, int* height)
 		operror(READING);
 	if (buff[0] != 'P' || buff[1] != '6')
 		operror(FORMAT);
-    nread = read(ppm, buff, LENGTH);
+	nread = read(ppm, buff, LENGTH);
 	if (nread == 0)
 		operror(READING);
-    i = 0;
+	close(ppm);
+	i = 0;
 	offset = 3;
-    while (buff[i] == '#') {
-        while (buff[i] != 0x0A)
-            i++;
-        i++;
-    }
-    sizes = 3;
-    while (sizes > 0) {
-		while (buff[i] != 0x0A && buff[i] != 0x20) {
-            if (sizes == 3)
-                w = w*10 + (buff[i] - '0');
-            if (sizes == 2)
-                h = h*10 + (buff[i] - '0');
-            if (sizes == 1)
-                ;
+	while (buff[i] == '#') {
+		while (buff[i] != 0x0A)
 			i++;
-            }
-        sizes--;
 		i++;
-    }
+	}
+	sizes = 3;
+	while (sizes > 0) {
+		while (buff[i] != 0x0A && buff[i] != 0x20) {
+			if (sizes == 3)
+				w = w*10 + (buff[i] - '0');
+			if (sizes == 2)
+				h = h*10 + (buff[i] - '0');
+			if (sizes == 1)
+				;
+			i++;
+		}
+		sizes--;
+		i++;
+	}
 	offset += i;
 	*height = h;
 	*width = w;
-	
 	return offset;
 }
 
@@ -171,37 +173,32 @@ void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
 	int x = 0;
 	int y = 0;
 	int ppm;
-    int i = 0;
-	int j = 0;
-	
+	int i = 0;
 	ppm = open(name, O_RDONLY);
 	if (ppm == -1)
 		operror(OPENING);
-	
-    nread = read(ppm, buff, LENGTH);
+	nread = read(ppm, buff, LENGTH);
 	if (nread == 0)
 		operror(READING);
-    i = offset;
-
-	
+	i = offset;
 	while (nread != 0) {
 		imageR[y][x] = buff[i];
 		i++;
 		if (i >= nread) {
 			nread = read(ppm, buff, LENGTH);
-            if (nread == -1)
-                operror(READING);
+			if (nread == -1)
+                		operror(READING);
 			i = 0;
 		}
 		imageG[y][x] = buff[i];
 		i++;
 		if (i >= nread) {
 			nread = read(ppm, buff, LENGTH);
-            if (nread == -1)
-                operror(READING);
+			if (nread == -1)
+				operror(READING);
 			i = 0;
 		}
-		imageB[y][x] = buff[i];		
+		imageB[y][x] = buff[i];
 		x++;
 		if (x >= width) {
 			x = 0;
@@ -212,9 +209,9 @@ void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
 		i++;
 		if (i >= nread) {
 			nread = read(ppm, buff, LENGTH);
-            if (nread == -1)
-                operror(READING);
-			i = 0;
+		if (nread == -1)
+			operror(READING);
+		i = 0;
 		}
 	}
 	close(ppm);
@@ -268,12 +265,11 @@ void* Sobel(void *arg)
 
 int main(int argc, char* argv[])
 {
-	char str[LENGTH] = {0};
 	uchar buff[LENGTH] = {0};
 	int width = 0;
 	int height = 0;
 	int ppm;
-    int i = 0;
+	int i = 0;
 	int j = 0;
 	int offset = 0;
 	uchar** imageR;
@@ -289,13 +285,13 @@ int main(int argc, char* argv[])
 
 	if (argc != 3)
 		operror(USAGE);
-	
+
 	offset = parseImage(argv[1], &width, &height);
 
 	imageR = (uchar**)malloc(height*sizeof(uchar*));
 	for (j = 0; j < height; j++)
 		imageR[j] = (uchar*)malloc(width*sizeof(uchar));
-	
+
 	imageG = (uchar**)malloc(height*sizeof(uchar*));
 	for (j = 0; j < height; j++)
 		imageG[j] = (uchar*)malloc(width*sizeof(uchar));
@@ -306,7 +302,6 @@ int main(int argc, char* argv[])
 
 	loadImage(imageR, imageG, imageB, argv[1], width, height, offset);
 
-
 	res = (uchar**)calloc(height, sizeof(uchar*));
 	for (j = 0; j < height; j++)
 		res[j] = (uchar*)calloc(width, sizeof(uchar));
@@ -316,7 +311,7 @@ int main(int argc, char* argv[])
 		numthreads += argv[2][i] - '0';
 		i++;
 	}
-	
+
 	threads = (pthread_t*)malloc(numthreads*sizeof(pthread_t));
 	arguments = (struct argument*)malloc(numthreads*sizeof(struct argument));
 
@@ -361,7 +356,7 @@ int main(int argc, char* argv[])
 	write(ppm, "\n", 1);
 	close(ppm);
 
-	ppm = creat("sobel.ppm", 0664);
+	ppm = creat("outn3.ppm", 0664);
 	write(ppm, "P5\n", 3);
 	ntoa(buff, width, LENGTH);
 	write(ppm, buff, strlen(buff));
