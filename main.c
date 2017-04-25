@@ -2,9 +2,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <math.h>
 #include <pthread.h>
+#include <time.h>
 
 #define LENGTH 1024
 #define uchar unsigned char
@@ -14,7 +14,9 @@ enum errorCode {
 	OPENING,
 	READING,
 	FORMAT,
-	PTHREAD
+	PTHREAD,
+	TIME,
+	PJOIN
 };
 
 struct argument {
@@ -29,6 +31,47 @@ struct argument {
 };
 
 void *Sobel(void *arg);
+
+void ntoa(uchar* buff, double number, int n)
+{
+	int i = 0;
+	int j = 0;
+	uchar temp;
+	uchar lowstr[LENGTH];
+	int point;
+	unsigned long high = (unsigned long)number;
+	double low = number - (unsigned long)number;
+
+	while (high > 0 && i < n) {
+		buff[i] = high%10 + '0';
+		high = high/10;
+		i++;
+	}
+	point = i;
+ 	for (j = 0; j < i/2; j++) {
+		temp = buff[j];
+		buff[j] = buff[i-j-1];
+		buff[i-j-1] = temp;
+	}
+	if (number < 1) {
+		buff[0] = '0';
+		point++;
+	}
+	buff[point] = 0;
+	if (low > 0) {
+		i = 0;
+		buff[point] = '.';
+		buff[point+1] = 0;
+		while (low > 0 && i+point < n) {
+			low = low*10.0;
+			lowstr[i] = (char)low + '0';
+			low = low - (unsigned long)low;
+			i++;
+		}
+		lowstr[i] = 0;
+		strcat(buff, lowstr);
+	}
+}
 
 void operror(char code)
 {
@@ -48,6 +91,12 @@ void operror(char code)
 			break;
 		case 5:
 			strcpy(str, "Error: pthread create\n");
+			break;
+		case 6:
+			strcpy(str, "Error: timer\n");
+			break;
+		case 7:
+			strcpy(str, "Error: cannot join thread\n");
 			break;
 		default:
 			strcpy(str, "Some error occured\n");
@@ -173,9 +222,6 @@ void loadImage(uchar** imageR, uchar** imageG, uchar** imageB,
 
 void* Sobel(void *arg)
 {
-//uchar** imageR, uchar** imageG, uchar** imageB,
-//			int start, int end, int height, int width, uchar** res
-
 	int i = 0;
 	int j = 0;
 	int Gxr, Gxg, Gxb;
@@ -184,7 +230,6 @@ void* Sobel(void *arg)
 	struct argument* a;
 
 	a = (struct argument*)arg;
-printf("b\n");
 	if (a->start == 0)
 		a->start++;
 	if (a->end == a->height)
@@ -217,7 +262,6 @@ printf("b\n");
 			else
 				a->res[i][j] = f;
 		}
-//printf("aaa\n");
 	}
 	pthread_exit(0);
 }
@@ -239,6 +283,9 @@ int main(int argc, char* argv[])
 	pthread_t* threads;
 	int numthreads = 0;
 	struct argument* arguments;
+	struct timespec start;
+	struct timespec end;
+	double elapsed;
 
 	if (argc != 3)
 		operror(USAGE);
@@ -269,55 +316,72 @@ int main(int argc, char* argv[])
 		numthreads += argv[2][i] - '0';
 		i++;
 	}
-
-printf("%i\n", numthreads);
-printf("%i\n", width);
-printf("%i\n", height);
 	
 	threads = (pthread_t*)malloc(numthreads*sizeof(pthread_t));
-	arguments = (struct argument*)malloc(sizeof(struct argument));
+	arguments = (struct argument*)malloc(numthreads*sizeof(struct argument));
 
-	arguments->imageR = imageR;
-	arguments->imageG = imageG;
-	arguments->imageB = imageB;
-	arguments->height = height;
-	arguments->width = width;
-	arguments->res = res;
-
-printf("c\n");
+	j = clock_gettime(CLOCK_REALTIME, &start);
+	if (j != 0)
+		operror(TIME);
 
 	for (i = 0; i < numthreads; i++) {
-		arguments->start = i*(height/numthreads);
-		arguments->end = arguments->start + height/numthreads;
-printf("st %i end %i\n", arguments->start, arguments->end);
+		arguments[i].imageR = imageR;
+		arguments[i].imageG = imageG;
+		arguments[i].imageB = imageB;
+		arguments[i].height = height;
+		arguments[i].width = width;
+		arguments[i].res = res;
+		arguments[i].start = i*(height/numthreads);
+		arguments[i].end = arguments[i].start + height/numthreads;
 
-		j = pthread_create(threads+i, NULL, Sobel, (void *)arguments);
+		j = pthread_create(threads+i, NULL, Sobel, (void *)(arguments+i));
 		if (j != 0)
 			operror(PTHREAD);
-printf("e\n");
-
 	}
 
 	for (i = 0; i < numthreads; i++)
-		pthread_join(threads[i], NULL);
+		if (pthread_join(threads[i], NULL) != 0)
+			operror(PJOIN);
 
-//	sleep(1);
-	//Sobel(imageR, imageG, imageB, 0, height, height, width, res);
-printf("ff\n");
-	ppm = creat("outn3.ppm", 0664);
-	snprintf(buff, 12,"%d",width);
-	write(ppm, "P5\n", 3);
+	j = clock_gettime(CLOCK_REALTIME, &end);
+	if (j != 0)
+		operror(TIME);
+
+	elapsed = end.tv_sec - start.tv_sec;
+	elapsed += (end.tv_nsec - start.tv_nsec) / 1000000000.0;
+
+	ppm = open("time.txt", O_WRONLY | O_CREAT | O_APPEND, 0664);
+	if (ppm == 0)
+		operror(OPENING);
+	ntoa(buff, numthreads, 10);
 	write(ppm, buff, strlen(buff));
 	write(ppm, " ", 1);
-	snprintf(buff, 12,"%d",height);
+	ntoa(buff, elapsed, 10);
+	write(ppm, buff, strlen(buff));
+	write(ppm, "\n", 1);
+	close(ppm);
+
+	ppm = creat("sobel.ppm", 0664);
+	write(ppm, "P5\n", 3);
+	ntoa(buff, width, LENGTH);
+	write(ppm, buff, strlen(buff));
+	write(ppm, " ", 1);
+	ntoa(buff, height, LENGTH);
 	write(ppm, buff, strlen(buff));
 	write(ppm, "\n255\n", 5);
 
+	for (i = 0; i < height; i++)
+		write(ppm, res[i], width);
+	close(ppm);
+
 	for (i = 0; i < height; i++) {
-		for (j = 0; j < width; j++) {
-			write(ppm, res[i] + j, 1);
-		}
+		free(imageR[i]);
+		free(imageG[i]);
+		free(imageB[i]);
+		free(res[i]);
 	}
+	free(threads);
+	free(arguments);
 
 	return 0;
 }
